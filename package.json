@@ -1,0 +1,20 @@
+{
+  "name": "auto-transfer",
+  "version": "0.0.1",
+  "description": "Create auto transfers for other accounts to withdraw automatically when certain conditions are valid",
+  "scripts": {
+    "dev": "watch -d -n 1 'clear && yarn test'",
+    "test": "yarn asp -f unit.spec",
+    "clean": "rm -rf ./build && rm -rf ./neardev",
+    "build": "asb --target debug",
+    "build:release": "asb",
+    "asp": "asp --verbose --nologo"
+  },
+  "keywords": [],
+  "author": "https://github.com/azmasamy",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^27.4.0",
+    "near-sdk-as": "^3.1.0"
+  }
+}
