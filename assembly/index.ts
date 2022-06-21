@@ -9,17 +9,17 @@ export class AutoTransfer {
   ids: PersistentVector<string> = new PersistentVector<string>("ids");
 
   /**
-   * @param reciever account to recieve the transfer
+   * @param receiver account to recieve the transfer
    * @param amount ammount to send the reciever 
    * @param date date afterwhich the transfer is valid in the following format (2020-07-10 15:00:00.000)
    */
   @mutateState()
-  transferAfterDate(reciever: string, amount: Money, date: string): Transfer {
+  transferAfterDate(receiver: string, amount: Money, date: string): Transfer {
     let currentTime = context.blockTimestamp
     let id: string = (context.sender + '/' + currentTime.toString()).toUpperCase();
 
-    let toNanoSec:u64 = 1000000;
-    let timeStamp:u64 = Date.fromString(date).getTime() * toNanoSec;
+    let toNanoSec: u64 = 1000000;
+    let timeStamp: u64 = Date.fromString(date).getTime() * toNanoSec;
 
     let validationInput: ValidationInput = new ValidationInput(
       timeStamp,
@@ -37,7 +37,7 @@ export class AutoTransfer {
     let transfer: Transfer = new Transfer(
       id,
       context.sender,
-      reciever,
+      receiver,
       amount,
       TransferStatus.Posted,
       currentTime,
@@ -58,7 +58,7 @@ export class AutoTransfer {
     return res;
   }
 
-  getUserCreatedTransfers(): Map<string, Transfer> {
+  getTransfersByMe(): Map<string, Transfer> {
     const res: Map<string, Transfer> = new Map<string, Transfer>();
     for (let i = 0; i < this.ids.length; i++) {
       if (context.sender == this.transfers.getSome(this.ids[i]).sender) {
@@ -68,7 +68,7 @@ export class AutoTransfer {
     return res;
   }
 
-  getUserTransfers(): Map<string, Transfer> {
+  getTransfersToMe(): Map<string, Transfer> {
     const res: Map<string, Transfer> = new Map<string, Transfer>();
     for (let i = 0; i < this.ids.length; i++) {
       if (context.sender == this.transfers.getSome(this.ids[i]).receiver) {
@@ -78,7 +78,7 @@ export class AutoTransfer {
     return res;
   }
 
-  private _validateTransferDate (transfer: Transfer): bool {
+  private _validateTransferDate(transfer: Transfer): bool {
     let transferDate: u64 = transfer.validationMethod.validationInput.transferDate;
     return transferDate < (context.blockTimestamp);
   };
@@ -86,12 +86,12 @@ export class AutoTransfer {
   /**
    * @param id Transfer id you want to withdraw (call getUserTransfers method to view all your transfers)
    */
-   @mutateState()
+  @mutateState()
   validateTransfer(id: string): Map<string, string> {
     let transfer = this.transfers.getSome(id);
     // Make sure transfer is for the transaction sender
     if (transfer.receiver == context.sender) {
-      // Make sure transfer status is valid for withdrawal
+      // Make sure transfer status valid for withdrawal
       switch (transfer.status) {
         case TransferStatus.Cancelled:
           return new Result('failed', 'Transfer was canceled by the sender').toMap();
@@ -99,30 +99,54 @@ export class AutoTransfer {
           return new Result('failed', 'Transfer has been already recieved').toMap();
         case TransferStatus.Posted:
           {
-              // Check transfer conditions
-              switch(transfer.validationMethod.validationFunction) {
-                case ValidationFunction.AfterDate: {
-                  if(this._validateTransferDate(transfer)) {
-                    transfer.status = TransferStatus.Received;
-                    this.transfers.delete(id);
-                    this.transfers.set(id, transfer);
-                    return new Result('success', 'Transfer validated').toMap();
-                  } else {
-                    return new Result('failed', 'Transfer validation failed').toMap();
-                  }
-                }
-                case ValidationFunction.LostAccess: {}
-                case ValidationFunction.External: {}
-                default: {
-                  return new Result('failed', 'Unexpected error').toMap();
+            // Check transfer conditions
+            switch (transfer.validationMethod.validationFunction) {
+              case ValidationFunction.AfterDate: {
+                if (this._validateTransferDate(transfer)) {
+                  transfer.status = TransferStatus.Received;
+                  this.transfers.delete(id);
+                  this.transfers.set(id, transfer);
+                  return new Result('success', 'Transfer validated').toMap();
+                } else {
+                  return new Result('failed', 'Transfer validation failed').toMap();
                 }
               }
+              case ValidationFunction.LostAccess: { }
+              case ValidationFunction.External: { }
+              default: {
+                return new Result('failed', 'Unexpected error').toMap();
+              }
+            }
           }
       }
     }
     return new Result('failed', 'Transfer is not for you!').toMap();
   }
 
+  /**
+ * @param id Transfer id you want to cancel (call getUserTransfers method to view all your transfers)
+ */
+  @mutateState()
+  cancelTransaction(id: string): Map<string, string> {
+    let transfer = this.transfers.getSome(id);
+    // Make sure transfer is for the transaction sender
+    if (transfer.sender == context.sender) {
+      // Make sure transfer status valid for cancelation
+      switch (transfer.status) {
+        case TransferStatus.Cancelled:
+          return new Result('failed', 'Transfer has been already canceled').toMap();
+        case TransferStatus.Received:
+          return new Result('failed', 'Transfer has been already recieved').toMap();
+        case TransferStatus.Posted:
+          {
+            transfer.status = TransferStatus.Cancelled;
+            this.transfers.delete(id);
+            this.transfers.set(id, transfer);
+          }
+      }
+    }
+    return new Result('failed', 'Transfer is not made by you!').toMap();
+  }
 
 
 }
