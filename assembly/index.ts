@@ -1,5 +1,5 @@
 import { context, PersistentMap, PersistentVector } from "near-sdk-as";
-import { Constants, Result, Transfer, TransferStatus, ValidationInput, ValidationMethod, ValidationType } from "./models";
+import { Constants, Result, Transfer, TransferStatus, ValidationFunction, ValidationInput, ValidationMethod } from "./models";
 import { Money } from "./utils"
 
 @nearBindgen
@@ -16,29 +16,26 @@ export class AutoTransfer {
   @mutateState()
   transferAfterDate(reciever: string, amount: Money, date: string): Transfer {
     let currentTime = context.blockTimestamp
-    let id: string = (context.sender + '/' + currentTime.toString).toUpperCase();
+    let id: string = (context.sender + '/' + currentTime.toString()).toUpperCase();
+
+    let toNanoSec:u64 = 1000000;
+    let timeStamp:u64 = Date.fromString(date).getTime() * toNanoSec;
 
     let validationInput: ValidationInput = new ValidationInput(
-      Date.fromString(date).getTime(),
+      timeStamp,
       0
-    )
-
-    let validateTransferDate:Function = (transfer: Transfer): bool => {
-      let transferDate: u64 = transfer.validationMethod.validationInput.transferDate;
-      return transferDate > context.blockTimestamp;
-    };
+    );
 
     let validationMethod: ValidationMethod = new ValidationMethod(
       Constants.AFTER_DATE_VALIDATION_NAME,
       Constants.AFTER_DATE_VALIDATION_DISC,
-      ValidationType.Internal,
+      ValidationFunction.AfterDate,
       validationInput,
-      validateTransferDate,
       ''
     );
 
     let transfer: Transfer = new Transfer(
-      id.toString(),
+      id,
       context.sender,
       reciever,
       amount,
@@ -81,6 +78,11 @@ export class AutoTransfer {
     return res;
   }
 
+  private _validateTransferDate (transfer: Transfer): bool {
+    let transferDate: u64 = transfer.validationMethod.validationInput.transferDate;
+    return transferDate < (context.blockTimestamp);
+  };
+
   /**
    * @param id Transfer id you want to withdraw (call getUserTransfers method to view all your transfers)
    */
@@ -97,21 +99,24 @@ export class AutoTransfer {
           return new Result('failed', 'Transfer has been already recieved').toMap();
         case TransferStatus.Posted:
           {
-            if (transfer.validationMethod.validationType == ValidationType.Internal) {
               // Check transfer conditions
-              if (transfer.validationMethod.internalValidationMethod.call(transfer)) {
-                transfer.status = TransferStatus.Received;
-                this.transfers.delete(id);
-                this.transfers.set(id, transfer);
-                return new Result('success', 'Transfer validated').toMap();
-              } else {
-                return new Result('failed', 'Transfer validation failed').toMap();
+              switch(transfer.validationMethod.validationFunction) {
+                case ValidationFunction.AfterDate: {
+                  if(this._validateTransferDate(transfer)) {
+                    transfer.status = TransferStatus.Received;
+                    this.transfers.delete(id);
+                    this.transfers.set(id, transfer);
+                    return new Result('success', 'Transfer validated').toMap();
+                  } else {
+                    return new Result('failed', 'Transfer validation failed').toMap();
+                  }
+                }
+                case ValidationFunction.LostAccess: {}
+                case ValidationFunction.External: {}
+                default: {
+                  return new Result('failed', 'Unexpected error').toMap();
+                }
               }
-            } else {
-              // If cross contraction validation
-              // return 'Valid transfer'
-              // else return 
-            }
           }
       }
     }

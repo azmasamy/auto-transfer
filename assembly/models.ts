@@ -6,8 +6,9 @@ export enum TransferStatus {
   Cancelled
 }
 
-export enum ValidationType {
-  Internal,
+export enum ValidationFunction {
+  AfterDate,
+  LostAccess,
   External
 }
 
@@ -54,24 +55,21 @@ export class ValidationInput{
 export class ValidationMethod{
   name:string;
   description:string;
-  validationType:ValidationType;
+  validationFunction:ValidationFunction;
   validationInput:ValidationInput;
-  internalValidationMethod:Function;
   externalValidationMethodName:string;
 
   constructor(
     name: string,
     description: string,
-    validationType: ValidationType,
+    validationFunction: ValidationFunction,
     validationInput: ValidationInput,
-    internalValidationMethod: Function,
     externalValidationMethodName: string = '',
   ) {
     this.name = name;
     this.description = description;
-    this.validationType = validationType;
+    this.validationFunction = validationFunction;
     this.validationInput = validationInput;
-    this.internalValidationMethod = internalValidationMethod;
     this.externalValidationMethodName = externalValidationMethodName;
   }
 }
