@@ -1,4 +1,4 @@
-import { context, PersistentMap, PersistentVector } from "near-sdk-as";
+import { context, ContractPromiseBatch, PersistentMap, PersistentVector, u128 } from "near-sdk-as";
 import { Constants, Result, Transfer, TransferStatus, ValidationFunction, ValidationInput, ValidationMethod } from "./models";
 import { Money } from "./utils"
 
@@ -15,14 +15,16 @@ export class AutoTransfer {
    */
   @mutateState()
   transferAfterDate(receiver: string, amount: Money, date: string): Transfer {
+
+    assert(context.attachedDeposit >= u128.add(amount, Constants.GAS_FEES), Constants.ATTACHED_DEPOSIT_ERROR_MESSAGE); // TODO: check offeredAmount + gasFees with Saudi
+
     let currentTime = context.blockTimestamp
     let id: string = (context.sender + '/' + currentTime.toString()).toUpperCase();
 
-    let toNanoSec: u64 = 1000000;
-    let timeStamp: u64 = Date.fromString(date).getTime() * toNanoSec;
+    let nanoSecondTimeStamp: u64 = Date.fromString(date).getTime() * Constants.MILLION; //To convert to nano second
 
     let validationInput: ValidationInput = new ValidationInput(
-      timeStamp,
+      nanoSecondTimeStamp,
       0
     );
 
@@ -81,14 +83,15 @@ export class AutoTransfer {
   private _validateTransferDate(transfer: Transfer): bool {
     let transferDate: u64 = transfer.validationMethod.validationInput.transferDate;
     return transferDate < (context.blockTimestamp);
-  };
+  }
 
   /**
    * @param id Transfer id you want to withdraw (call getUserTransfers method to view all your transfers)
    */
   @mutateState()
-  validateTransfer(id: string): Map<string, string> {
+  withdrawTransfer(id: string): Map<string, string> {
     let transfer = this.transfers.getSome(id);
+    assert(transfer, Constants.NO_TRANSFER_ERROR_MESSAGE);
     // Make sure transfer is for the transaction sender
     if (transfer.receiver == context.sender) {
       // Make sure transfer status valid for withdrawal
@@ -106,6 +109,7 @@ export class AutoTransfer {
                   transfer.status = TransferStatus.Received;
                   this.transfers.delete(id);
                   this.transfers.set(id, transfer);
+                  ContractPromiseBatch.create(transfer.receiver).transfer(transfer.amount);
                   return new Result('success', 'Transfer validated').toMap();
                 } else {
                   return new Result('failed', 'Transfer validation failed').toMap();

@@ -1,3 +1,4 @@
+import { u128 } from "near-sdk-as";
 import { AccountId, Money } from "./utils";
 
 export enum TransferStatus {
@@ -15,6 +16,11 @@ export enum ValidationFunction {
 export class Constants {
   static AFTER_DATE_VALIDATION_NAME:string = 'Transfer After Date';
   static AFTER_DATE_VALIDATION_DISC:string = 'Check if the given date is after the current date';
+  static MILLION:i64 = 1000000;
+  static GAS_FEES:Money = u128.from("1000000000000000000000");
+  static ATTACHED_DEPOSIT_ERROR_MESSAGE:string = "Attached deposit must cover the amount you want to transfer + the transaction fees";
+  static NO_TRANSFER_ERROR_MESSAGE:string = "Could not find any transfer with this id";
+  
 }
 
 export class Result {

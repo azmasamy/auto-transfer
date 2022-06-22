@@ -12,8 +12,5 @@ echo --------------------------------------------
 echo
 echo "deploying the contract"
 echo
-near deploy --accountId="$CONTRACT" --wasmFile="./build/release/auto-transfer.wasm"
-
-#echo "initalizing the contract"
-#echo
-#near call "$CONTRACT" init '{}' --accountId "$OWNER"
+echo
+near deploy --accountId "$CONTRACT" --wasmFile="./build/release/auto-transfer.wasm"

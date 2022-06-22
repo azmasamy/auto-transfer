@@ -5,3 +5,6 @@ set -e
 echo "Listing all transfers"
 echo
 near view  "$CONTRACT" getAllTransfers
+# OUTPUT=$(near view  "$CONTRACT" getAllTransfers)
+
+# echo ${OUTPUT}
